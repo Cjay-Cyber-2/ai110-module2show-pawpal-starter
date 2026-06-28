@@ -12,15 +12,16 @@ A busy pet owner needs help staying consistent with pet care. They want an assis
 
 Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
 
-## What you will build
+## Features
 
-Your final app should:
-
-- Let a user enter basic owner + pet info
-- Let a user add/edit tasks (duration + priority at minimum)
-- Generate a daily schedule/plan based on constraints and priorities
-- Display the plan clearly (and ideally explain the reasoning)
-- Include tests for the most important scheduling behaviors
+- **Owner & Pet management** — register an owner and multiple pets with species info
+- **Task scheduling** — add care tasks with time, frequency (once/daily/weekly), and completion tracking
+- **Sorting by time** — `Scheduler.sort_by_time()` orders tasks chronologically using HH:MM strings
+- **Filtering** — filter tasks by pet name (`filter_by_pet`) or completion status (`filter_by_status`)
+- **Conflict warnings** — `Scheduler.detect_conflicts()` flags tasks scheduled at the exact same time
+- **Daily/weekly recurrence** — completing a recurring task auto-creates the next occurrence via `Task.mark_complete()`
+- **CLI demo** — `main.py` verifies all backend logic in the terminal before using the Streamlit UI
+- **Automated tests** — pytest suite covers sorting, recurrence, conflict detection, and edge cases
 
 ## Getting started
 
@@ -30,6 +31,18 @@ Your final app should:
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+### Run the CLI demo
+
+```bash
+python main.py
+```
+
+### Run the Streamlit app
+
+```bash
+streamlit run app.py
 ```
 
 ### Suggested workflow
@@ -44,51 +57,114 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+CLI output from running `python main.py`:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+=== PawPal+ Today's Schedule ===
+  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
+  09:00 | pending | Medication - Whiskers
+  09:00 | pending | Grooming - Whiskers
+  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
+
+=== All Tasks Sorted by Time (added out of order) ===
+  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
+  09:00 | pending | Medication - Whiskers
+  09:00 | pending | Grooming - Whiskers
+  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
+
+=== Incomplete Tasks Only ===
+  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
+  09:00 | pending | Medication - Whiskers
+  09:00 | pending | Grooming - Whiskers
+  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
+
+=== Buddy's Tasks Only ===
+  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
+  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
+
+=== Conflict Warnings ===
+  WARNING: Conflict at 09:00: Medication (Whiskers), Grooming (Whiskers) are all scheduled at the same time.
+
+=== Recurring Task Demo ===
+Buddy now has 3 tasks after completing morning walk.
+  -> Evening feeding due 2026-06-28 at 18:00
+  -> Morning walk due 2026-06-29 at 08:00
 ```
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+Run the full test suite:
 
-# Run with coverage:
-pytest --cov
+```bash
+python -m pytest
 ```
+
+The test suite covers:
+
+- **Task completion** — `mark_complete()` sets `completed=True`
+- **Task addition** — adding a task increases a pet's task count
+- **Sorting correctness** — tasks returned in chronological HH:MM order
+- **Recurrence logic** — daily task completion creates a next-day instance
+- **Conflict detection** — duplicate times produce a warning message
+- **Pet filtering** — only the selected pet's tasks are returned
+- **Edge case** — a pet with no tasks yields an empty schedule
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-9.0.3, pluggy-1.6.0
+collected 7 items
+
+tests/test_pawpal.py::test_task_completion_changes_status PASSED
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED
+tests/test_pawpal.py::test_daily_recurrence_creates_next_day_task PASSED
+tests/test_pawpal.py::test_conflict_detection_flags_duplicate_times PASSED
+tests/test_pawpal.py::test_filter_by_pet_returns_only_matching_tasks PASSED
+tests/test_pawpal.py::test_pet_with_no_tasks_returns_empty_schedule PASSED
+
+============================== 7 passed in 0.25s ==============================
 ```
+
+**Confidence Level:** ★★★★☆ (4/5) — Core scheduling, sorting, filtering, recurrence, and conflict detection are covered by automated tests. Additional edge cases (weekly recurrence, overlapping durations) could be tested with more time.
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time()` | Sorts tasks chronologically using HH:MM string comparison via `sorted()` with a lambda key |
+| Filtering | `Scheduler.filter_by_status()`, `Scheduler.filter_by_pet()` | Filter by completion status or pet name (case-insensitive) |
+| Conflict handling | `Scheduler.detect_conflicts()` | Lightweight exact-time match detection; returns warning strings instead of crashing |
+| Recurring tasks | `Task.mark_complete()`, `Scheduler.complete_task()` | Daily tasks reschedule +1 day; weekly tasks reschedule +7 days using `timedelta` |
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+1. **Set up the owner** — Enter your name in the Owner section. The app stores your `Owner` object in `st.session_state` so data persists across interactions.
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+2. **Add pets** — Use the "Add a Pet" form to register one or more pets (e.g., Buddy the dog, Whiskers the cat). Each pet is created as a `Pet` object and added to the owner via `Owner.add_pet()`.
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+3. **Schedule tasks** — Select a pet, enter a task description, time (HH:MM), and frequency (once/daily/weekly). Submitting the form calls `Pet.add_task()` with a new `Task` instance.
+
+4. **View today's schedule** — The schedule table uses `Scheduler.get_todays_schedule()` to show incomplete tasks sorted by time. Use the pet and status filters to narrow the view. Conflict warnings appear as yellow `st.warning` banners when two tasks share the same time slot.
+
+5. **Complete tasks** — Select a pending task and click "Mark Complete." The scheduler calls `Scheduler.complete_task()`, which marks the task done and auto-creates the next recurring instance for daily/weekly tasks.
+
+Key scheduler behaviors visible in the UI: chronological sorting, pet/status filtering, conflict warnings at duplicate times, and automatic recurrence after completion.
+
+## Project Structure
+
+```
+pawpal_system.py      — Core classes: Task, Pet, Owner, Scheduler
+main.py               — CLI demo script
+app.py                — Streamlit UI
+tests/test_pawpal.py  — Automated pytest suite
+diagrams/
+  uml_draft.mmd       — Initial UML class diagram
+  uml_final.mmd       — Final UML matching implemented code
+reflection.md         — Design decisions and AI collaboration notes
+```
+
+## UML Class Diagram
+
+See `diagrams/uml_final.mmd` for the final Mermaid class diagram showing `Owner`, `Pet`, `Task`, and `Scheduler` relationships.
