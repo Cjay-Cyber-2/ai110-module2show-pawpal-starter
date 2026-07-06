@@ -1,23 +1,32 @@
 """CLI demo script for PawPal+ — verifies backend logic in the terminal."""
 
 from datetime import date
+from tabulate import tabulate
 
 from pawpal_system import Owner, Pet, Scheduler, Task
 
 
 def format_schedule(tasks: list[tuple[str, Task]]) -> str:
-    """Format a list of (pet_name, task) pairs for readable terminal output."""
+    """Format a list of (pet_name, task) pairs for readable terminal output using tabulate."""
     if not tasks:
         return "  (no tasks scheduled)"
-    lines = []
+    
+    table_data = []
     for pet_name, task in tasks:
-        status = "done" if task.completed else "pending"
-        freq = f" [{task.frequency}]" if task.frequency != "once" else ""
-        due = f" (due {task.due_date})" if task.due_date else ""
-        lines.append(
-            f"  {task.time} | {status:7} | {task.description} - {pet_name}{freq}{due}"
-        )
-    return "\n".join(lines)
+        status = "Done" if task.completed else "Pending"
+        due = str(task.due_date) if task.due_date else "-"
+        table_data.append([
+            task.time,
+            task.priority,
+            status,
+            task.description,
+            pet_name,
+            task.frequency.capitalize(),
+            due
+        ])
+        
+    headers = ["Time", "Priority", "Status", "Task", "Pet", "Frequency", "Due Date"]
+    return "\n" + tabulate(table_data, headers=headers, tablefmt="grid")
 
 
 def main() -> None:
@@ -33,6 +42,7 @@ def main() -> None:
             time="08:00",
             frequency="daily",
             due_date=date.today(),
+            priority="High"
         )
     )
     buddy.add_task(
@@ -41,10 +51,11 @@ def main() -> None:
             time="18:00",
             frequency="daily",
             due_date=date.today(),
+            priority="Medium"
         )
     )
-    whiskers.add_task(Task(description="Medication", time="09:00", frequency="once"))
-    whiskers.add_task(Task(description="Grooming", time="09:00", frequency="once"))
+    whiskers.add_task(Task(description="Medication", time="09:00", frequency="once", priority="High"))
+    whiskers.add_task(Task(description="Grooming", time="09:00", frequency="once", priority="Low"))
 
     scheduler = Scheduler(owner)
 

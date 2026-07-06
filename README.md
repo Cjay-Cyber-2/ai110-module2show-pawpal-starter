@@ -16,12 +16,13 @@ Your job is to design the system first (UML), then implement the logic in Python
 
 - **Owner & Pet management** — register an owner and multiple pets with species info
 - **Task scheduling** — add care tasks with time, frequency (once/daily/weekly), and completion tracking
-- **Sorting by time** — `Scheduler.sort_by_time()` orders tasks chronologically using HH:MM strings
+- **Sorting by time & priority** — `Scheduler.sort_by_time()` orders tasks chronologically, considering Priority first.
 - **Filtering** — filter tasks by pet name (`filter_by_pet`) or completion status (`filter_by_status`)
 - **Conflict warnings** — `Scheduler.detect_conflicts()` flags tasks scheduled at the exact same time
+- **Data Persistence** — `Owner.save_to_json()` and `load_from_json()` allow the state to persist across runs via `data.json`.
 - **Daily/weekly recurrence** — completing a recurring task auto-creates the next occurrence via `Task.mark_complete()`
-- **CLI demo** — `main.py` verifies all backend logic in the terminal before using the Streamlit UI
-- **Automated tests** — pytest suite covers sorting, recurrence, conflict detection, and edge cases
+- **CLI demo with Tables** — `main.py` verifies all backend logic in the terminal before using the Streamlit UI, formatted with `tabulate`.
+- **Automated tests** — pytest suite covers sorting, recurrence, conflict detection, JSON serialization, and edge cases
 
 ## Getting started
 
@@ -61,34 +62,40 @@ CLI output from running `python main.py`:
 
 ```
 === PawPal+ Today's Schedule ===
-  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
-  09:00 | pending | Medication - Whiskers
-  09:00 | pending | Grooming - Whiskers
-  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
+
++--------+------------+----------+-----------------+----------+-------------+------------+
+| Time   | Priority   | Status   | Task            | Pet      | Frequency   | Due Date   |
++========+============+==========+=================+==========+=============+============+
+| 08:00  | High       | Pending  | Morning walk    | Buddy    | Daily       | 2026-07-06 |
++--------+------------+----------+-----------------+----------+-------------+------------+
+| 09:00  | High       | Pending  | Medication      | Whiskers | Once        | -          |
++--------+------------+----------+-----------------+----------+-------------+------------+
+| 09:00  | Low        | Pending  | Grooming        | Whiskers | Once        | -          |
++--------+------------+----------+-----------------+----------+-------------+------------+
+| 18:00  | Medium     | Pending  | Evening feeding | Buddy    | Daily       | 2026-07-06 |
++--------+------------+----------+-----------------+----------+-------------+------------+
 
 === All Tasks Sorted by Time (added out of order) ===
-  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
-  09:00 | pending | Medication - Whiskers
-  09:00 | pending | Grooming - Whiskers
-  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
 
-=== Incomplete Tasks Only ===
-  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
-  09:00 | pending | Medication - Whiskers
-  09:00 | pending | Grooming - Whiskers
-  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
-
-=== Buddy's Tasks Only ===
-  08:00 | pending | Morning walk - Buddy [daily] (due 2026-06-28)
-  18:00 | pending | Evening feeding - Buddy [daily] (due 2026-06-28)
++--------+------------+----------+-----------------+----------+-------------+------------+
+| Time   | Priority   | Status   | Task            | Pet      | Frequency   | Due Date   |
++========+============+==========+=================+==========+=============+============+
+| 08:00  | High       | Pending  | Morning walk    | Buddy    | Daily       | 2026-07-06 |
++--------+------------+----------+-----------------+----------+-------------+------------+
+| 09:00  | High       | Pending  | Medication      | Whiskers | Once        | -          |
++--------+------------+----------+-----------------+----------+-------------+------------+
+| 18:00  | Medium     | Pending  | Evening feeding | Buddy    | Daily       | 2026-07-06 |
++--------+------------+----------+-----------------+----------+-------------+------------+
+| 09:00  | Low        | Pending  | Grooming        | Whiskers | Once        | -          |
++--------+------------+----------+-----------------+----------+-------------+------------+
 
 === Conflict Warnings ===
   WARNING: Conflict at 09:00: Medication (Whiskers), Grooming (Whiskers) are all scheduled at the same time.
 
 === Recurring Task Demo ===
 Buddy now has 3 tasks after completing morning walk.
-  -> Evening feeding due 2026-06-28 at 18:00
-  -> Morning walk due 2026-06-29 at 08:00
+  -> Evening feeding due 2026-07-06 at 18:00
+  -> Morning walk due 2026-07-07 at 08:00
 ```
 
 ## 🧪 Testing PawPal+
@@ -133,10 +140,11 @@ tests/test_pawpal.py::test_pet_with_no_tasks_returns_empty_schedule PASSED
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | `Scheduler.sort_by_time()` | Sorts tasks chronologically using HH:MM string comparison via `sorted()` with a lambda key |
+| Task sorting | `Scheduler.sort_by_time()` | Sorts tasks chronologically considering Priority maps (`High`: 0, `Medium`: 1, `Low`: 2) |
 | Filtering | `Scheduler.filter_by_status()`, `Scheduler.filter_by_pet()` | Filter by completion status or pet name (case-insensitive) |
 | Conflict handling | `Scheduler.detect_conflicts()` | Lightweight exact-time match detection; returns warning strings instead of crashing |
 | Recurring tasks | `Task.mark_complete()`, `Scheduler.complete_task()` | Daily tasks reschedule +1 day; weekly tasks reschedule +7 days using `timedelta` |
+| Data Persistence | `Owner.save_to_json()`, `Owner.load_from_json()` | Safely serialize the object graph to `data.json` including date conversions |
 
 ## 📸 Demo Walkthrough
 

@@ -1,5 +1,6 @@
 """Streamlit UI for PawPal+ — connects to the pawpal_system logic layer."""
 
+import os
 from datetime import date
 
 import streamlit as st
@@ -12,7 +13,13 @@ st.title("🐾 PawPal+")
 st.caption("Smart pet care management — schedule, track, and prioritize daily routines.")
 
 if "owner" not in st.session_state:
-    st.session_state.owner = Owner(name="Chijioke")
+    if os.path.exists("data.json"):
+        try:
+            st.session_state.owner = Owner.load_from_json("data.json")
+        except Exception:
+            st.session_state.owner = Owner(name="Chijioke")
+    else:
+        st.session_state.owner = Owner(name="Chijioke")
 
 owner: Owner = st.session_state.owner
 scheduler = Scheduler(owner)
@@ -24,6 +31,7 @@ with col_owner:
     new_owner_name = st.text_input("Owner name", value=owner.name)
     if new_owner_name != owner.name:
         owner.name = new_owner_name
+        owner.save_to_json()
 
 with col_pet:
     st.subheader("Add a Pet")
@@ -33,6 +41,7 @@ with col_pet:
         if st.form_submit_button("Add Pet"):
             if pet_name.strip():
                 owner.add_pet(Pet(name=pet_name.strip(), species=species))
+                owner.save_to_json()
                 st.success(f"Added {pet_name}!")
             else:
                 st.error("Please enter a pet name.")
@@ -49,6 +58,7 @@ else:
         task_desc = st.text_input("Task description", placeholder="Morning walk")
         task_time = st.text_input("Time (HH:MM)", value="08:00")
         frequency = st.selectbox("Frequency", ["once", "daily", "weekly"])
+        priority = st.selectbox("Priority", ["High", "Medium", "Low"], index=1)
         if st.form_submit_button("Add Task"):
             if task_desc.strip():
                 pet_options[selected_pet].add_task(
@@ -57,9 +67,11 @@ else:
                         time=task_time,
                         frequency=frequency,
                         due_date=date.today() if frequency != "once" else None,
+                        priority=priority
                     )
                 )
-                st.success(f"Scheduled '{task_desc}' for {selected_pet} at {task_time}.")
+                owner.save_to_json()
+                st.success(f"Scheduled '{task_desc}' for {selected_pet} at {task_time} ({priority} priority).")
             else:
                 st.error("Please enter a task description.")
 
@@ -107,6 +119,7 @@ if schedule:
         rows.append(
             {
                 "Time": task.time,
+                "Priority": task.priority,
                 "Task": task.description,
                 "Pet": pet_name,
                 "Frequency": task.frequency,
@@ -140,6 +153,7 @@ if owner.pets:
             actual_idx = pending[selected_idx][0]
             if st.button("Mark Complete"):
                 scheduler.complete_task(complete_pet, actual_idx)
+                owner.save_to_json()
                 st.success("Task marked complete!")
                 if pet_obj.tasks[actual_idx].frequency in ("daily", "weekly"):
                     st.info("A new recurring instance was created for the next occurrence.")

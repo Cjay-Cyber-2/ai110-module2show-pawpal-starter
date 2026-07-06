@@ -1,5 +1,7 @@
 """Automated tests for the PawPal+ system."""
 
+import os
+import json
 from datetime import date, timedelta
 
 from pawpal_system import Owner, Pet, Scheduler, Task
@@ -104,3 +106,45 @@ def test_pet_with_no_tasks_returns_empty_schedule():
     owner.add_pet(Pet(name="Empty", species="dog"))
     scheduler = Scheduler(owner)
     assert scheduler.get_todays_schedule() == []
+
+
+def test_priority_sorting():
+    """Verify that tasks are sorted by priority first, then time."""
+    owner = Owner(name="Test")
+    pet = Pet(name="Max", species="dog")
+    pet.add_task(Task(description="Low Priority Early", time="08:00", priority="Low"))
+    pet.add_task(Task(description="High Priority Late", time="18:00", priority="High"))
+    pet.add_task(Task(description="High Priority Early", time="09:00", priority="High"))
+    owner.add_pet(pet)
+
+    scheduler = Scheduler(owner)
+    sorted_tasks = scheduler.sort_by_time(owner.get_all_tasks())
+    descriptions = [task.description for _, task in sorted_tasks]
+    assert descriptions == ["High Priority Early", "High Priority Late", "Low Priority Early"]
+
+
+def test_json_serialization():
+    """Verify that an Owner can be saved to and loaded from JSON."""
+    owner = Owner(name="Test")
+    pet = Pet(name="Luna", species="cat")
+    today = date.today()
+    pet.add_task(Task(description="Medication", time="09:00", frequency="daily", due_date=today, priority="High"))
+    owner.add_pet(pet)
+
+    test_filename = "test_data.json"
+    owner.save_to_json(test_filename)
+    
+    assert os.path.exists(test_filename)
+    
+    loaded_owner = Owner.load_from_json(test_filename)
+    os.remove(test_filename)
+    
+    assert loaded_owner.name == "Test"
+    assert len(loaded_owner.pets) == 1
+    assert loaded_owner.pets[0].name == "Luna"
+    assert len(loaded_owner.pets[0].tasks) == 1
+    
+    loaded_task = loaded_owner.pets[0].tasks[0]
+    assert loaded_task.description == "Medication"
+    assert loaded_task.priority == "High"
+    assert loaded_task.due_date == today

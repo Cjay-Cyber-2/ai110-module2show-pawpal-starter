@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import dataclass, field, asdict
 from datetime import date, timedelta
 from typing import Optional
 
@@ -16,6 +17,7 @@ class Task:
     frequency: str = "once"
     completed: bool = False
     due_date: Optional[date] = None
+    priority: str = "Medium"
 
     def mark_complete(self) -> Optional[Task]:
         """Mark this task complete and return a recurring follow-up if applicable."""
@@ -28,6 +30,7 @@ class Task:
                 frequency="daily",
                 completed=False,
                 due_date=next_due,
+                priority=self.priority,
             )
         if self.frequency == "weekly":
             next_due = (self.due_date or date.today()) + timedelta(days=7)
@@ -37,6 +40,7 @@ class Task:
                 frequency="weekly",
                 completed=False,
                 due_date=next_due,
+                priority=self.priority,
             )
         return None
 
@@ -80,6 +84,43 @@ class Owner:
         """Return all tasks across pets as (pet_name, task) pairs."""
         return [(pet.name, task) for pet in self.pets for task in pet.tasks]
 
+    def save_to_json(self, filename: str = "data.json") -> None:
+        """Save the owner, pets, and tasks to a JSON file."""
+        data = asdict(self)
+        
+        def default_serializer(obj):
+            if isinstance(obj, date):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+            
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, default=default_serializer)
+
+    @classmethod
+    def load_from_json(cls, filename: str = "data.json") -> "Owner":
+        """Load the owner, pets, and tasks from a JSON file."""
+        with open(filename, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        owner = cls(name=data["name"])
+        for pet_data in data.get("pets", []):
+            pet = Pet(name=pet_data["name"], species=pet_data["species"])
+            for task_data in pet_data.get("tasks", []):
+                due_date_str = task_data.get("due_date")
+                due_date = date.fromisoformat(due_date_str) if due_date_str else None
+                task = Task(
+                    description=task_data["description"],
+                    time=task_data["time"],
+                    frequency=task_data.get("frequency", "once"),
+                    completed=task_data.get("completed", False),
+                    due_date=due_date,
+                    priority=task_data.get("priority", "Medium")
+                )
+                pet.add_task(task)
+            owner.add_pet(pet)
+            
+        return owner
+
 
 class Scheduler:
     """Retrieves, organizes, and manages tasks across an owner's pets."""
@@ -92,8 +133,9 @@ class Scheduler:
         return self.owner.get_all_tasks()
 
     def sort_by_time(self, tasks: list[tuple[str, Task]]) -> list[tuple[str, Task]]:
-        """Sort tasks chronologically by their HH:MM time string."""
-        return sorted(tasks, key=lambda item: item[1].time)
+        """Sort tasks by priority first, then chronologically by their HH:MM time string."""
+        priority_map = {"High": 0, "Medium": 1, "Low": 2}
+        return sorted(tasks, key=lambda item: (priority_map.get(item[1].priority, 1), item[1].time))
 
     def filter_by_status(
         self, tasks: list[tuple[str, Task]], completed: bool
